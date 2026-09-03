@@ -24,6 +24,7 @@ const translations = {
     works_header: " ผลงานของฉัน ",
     works_sub: "รวมผลงานศิลปะ ภาพประกอบ และงานออกแบบ",
     tag_all: "✦ ทั้งหมด",
+    loading_works: "กำลังโหลดผลงาน...",
     empty_works: "ยังไม่มีผลงาน... กลับมาดูใหม่เร็วๆ นี้นะ!",
 
     // Work detail
@@ -99,6 +100,7 @@ const translations = {
     works_header: " My Works ",
     works_sub: "A collection of my artworks, illustrations, and designs.",
     tag_all: "✦ All",
+    loading_works: "Loading works...",
     empty_works: "No works found... check back soon!",
 
     // Work detail
@@ -174,6 +176,7 @@ const translations = {
     works_header: "私の作品",
     works_sub: "アート、イラスト、デザインのコレクション。",
     tag_all: "✦ すべて",
+    loading_works: "作品を読み込み中...",
     empty_works: "作品が見つかりません... またすぐにチェックしてください！",
 
     // Work detail

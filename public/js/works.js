@@ -5,13 +5,17 @@
 document.addEventListener('DOMContentLoaded', () => {
   initNav();
   initNavScroll();
+  readUrlTag();
+  showLoading();
   loadTags();
   loadWorks();
-  checkUrlTag();
 });
 
 let allWorks = [];
 let activeTag = 'all';
+let isLoading = true;
+
+const SKELETON_COUNT = 6;
 
 // Handle language change
 window.addEventListener('languageChanged', () => {
@@ -39,19 +43,50 @@ function initNavScroll() {
 }
 
 // --- Check URL tag param ---
-function checkUrlTag() {
+function readUrlTag() {
   const params = new URLSearchParams(window.location.search);
   const tag = params.get('tag');
-  if (tag) {
-    activeTag = tag;
-    // Will be set active after tags load
-    setTimeout(() => {
-      document.querySelectorAll('.tag-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tag === tag);
-      });
-      renderWorks();
-    }, 500);
-  }
+  if (tag) activeTag = tag;
+}
+
+// --- Loading State ---
+// Fill the grid with skeleton cards so the page never looks empty
+// while /api/works is still in flight.
+function showLoading() {
+  isLoading = true;
+
+  const grid = document.getElementById('worksGrid');
+  const emptyState = document.getElementById('emptyState');
+  const label = document.getElementById('worksLoading');
+
+  if (emptyState) emptyState.style.display = 'none';
+  if (label) label.style.display = '';
+  if (!grid) return;
+
+  grid.setAttribute('aria-busy', 'true');
+  grid.innerHTML = Array.from({ length: SKELETON_COUNT }, (_, i) => `
+    <div class="skeleton-card" style="--sk-delay:${(i * 0.12).toFixed(2)}s" aria-hidden="true">
+      <div class="sk-media sk-shimmer"></div>
+      <div class="sk-body">
+        <div class="sk-line sk-line-title sk-shimmer"></div>
+        <div class="sk-line sk-shimmer"></div>
+        <div class="sk-line sk-line-short sk-shimmer"></div>
+        <div class="sk-tags">
+          <span class="sk-tag sk-shimmer"></span>
+          <span class="sk-tag sk-shimmer"></span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function hideLoading() {
+  isLoading = false;
+
+  const grid = document.getElementById('worksGrid');
+  const label = document.getElementById('worksLoading');
+
+  if (label) label.style.display = 'none';
+  if (grid) grid.setAttribute('aria-busy', 'false');
 }
 
 // --- YouTube Helpers ---
@@ -84,39 +119,40 @@ async function loadTags() {
       btn.addEventListener('click', () => filterByTag(tag.name));
       container.appendChild(btn);
     });
+    syncTagButtons(); // reflect ?tag= coming from the URL
   } catch (err) {
     console.error('Failed to load tags:', err);
   }
 }
 
+function syncTagButtons() {
+  document.querySelectorAll('.tag-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tag === activeTag);
+  });
+}
+
 // --- Filter By Tag ---
 function filterByTag(tag) {
   activeTag = tag;
-  document.querySelectorAll('.tag-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tag === tag);
-  });
+  syncTagButtons();
   renderWorks();
 }
 
 // --- Load Works ---
 async function loadWorks() {
-  const spinner = document.getElementById('loadingSpinner');
   const emptyState = document.getElementById('emptyState');
 
   try {
     const res = await fetch('/api/works');
     allWorks = await res.json();
-    if (spinner) spinner.remove();
-
-    if (allWorks.length === 0) {
-      emptyState.style.display = 'block';
-    } else {
-      renderWorks();
-    }
+    hideLoading();
+    renderWorks();
   } catch (err) {
-    if (spinner) spinner.remove();
+    hideLoading();
     console.error('Failed to load works:', err);
-    emptyState.style.display = 'block';
+    const grid = document.getElementById('worksGrid');
+    if (grid) grid.innerHTML = '';
+    if (emptyState) emptyState.style.display = 'block';
   }
 }
 
@@ -124,6 +160,13 @@ async function loadWorks() {
 function renderWorks() {
   const grid = document.getElementById('worksGrid');
   const emptyState = document.getElementById('emptyState');
+
+  // Still fetching — keep the skeletons on screen instead of
+  // flashing the "no works found" state.
+  if (isLoading) {
+    showLoading();
+    return;
+  }
 
   const filtered = activeTag === 'all'
     ? allWorks
@@ -163,15 +206,22 @@ function renderWorks() {
     const imgCountBadge = totalImages > 1
       ? `<span class="img-count-badge">🖼 ${totalImages}</span>`
       : '';
-      
+
     // Star badge
     const starBadge = work.is_starred ? `<div class="star-badge" title="Featured Work">⭐</div>` : '';
 
     const recBadge = work.is_starred ? '<span class="recommended-badge">⭐ Featured</span>' : '';
 
+    // Shimmer stays on the media box until the thumbnail decodes;
+    // no thumbnail at all goes straight to the placeholder state.
+    const mediaState = thumbSrc ? 'media-loading' : 'media-error';
+    const thumbHtml = thumbSrc
+      ? `<img src="${thumbSrc}" alt="${title}" loading="lazy">`
+      : '';
+
     card.innerHTML = `
-      <div class="card-media">
-        <img src="${thumbSrc}" alt="${title}" loading="lazy">
+      <div class="card-media ${mediaState}">
+        ${thumbHtml}
         ${videoBadge}
         ${imgCountBadge}
         ${starBadge}
@@ -183,6 +233,8 @@ function renderWorks() {
       </div>
     `;
 
+    trackThumbLoad(card.querySelector('.card-media img'));
+
     // Navigate to detail page instead of lightbox
     card.addEventListener('click', () => {
       window.location.href = `/work-detail?id=${work.id}`;
@@ -190,6 +242,28 @@ function renderWorks() {
 
     grid.appendChild(card);
   });
+}
+
+// --- Per-thumbnail loading state ---
+function trackThumbLoad(img) {
+  if (!img) return;
+  const media = img.parentElement;
+
+  const done = () => media.classList.remove('media-loading');
+  const failed = () => {
+    media.classList.remove('media-loading');
+    media.classList.add('media-error');
+  };
+
+  // A cached image can already be complete before the listeners attach.
+  if (img.complete) {
+    if (img.naturalWidth) done();
+    else failed();
+    return;
+  }
+
+  img.addEventListener('load', done, { once: true });
+  img.addEventListener('error', failed, { once: true });
 }
 
 // --- "All" tag click ---

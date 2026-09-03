@@ -61,10 +61,14 @@
       <button class="tag-btn active" data-tag="all" data-i18n="tag_all">✦ All</button>
     </div>
 
-    <!-- Works Grid -->
-    <div class="works-grid" id="worksGrid">
-      <div class="spinner" id="loadingSpinner"></div>
-    </div>
+    <!-- Loading Indicator -->
+    <p class="works-loading" id="worksLoading" role="status" aria-live="polite">
+      <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+      <span data-i18n="loading_works">Loading works...</span>
+    </p>
+
+    <!-- Works Grid (skeleton placeholders injected by works.js while loading) -->
+    <div class="works-grid" id="worksGrid" aria-busy="true"></div>
 
     <!-- Empty State -->
     <div class="empty-state" id="emptyState" style="display:none;">
