@@ -21,9 +21,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists (skipped on Vercel: read-only filesystem,
+// and uploads go to Cloudinary there anyway)
 const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
+if (!process.env.VERCEL && !fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsDir));
@@ -67,17 +68,32 @@ const uploadMulti = upload.fields([
 // --- Auth ---
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'artfolio123';
 const hashedPassword = bcrypt.hashSync(ADMIN_PASSWORD, 10);
-const sessions = new Map(); // token -> expiry
+// Stateless signed tokens: serverless instances don't share memory, so an
+// in-process session store would drop logins between requests.
+const SESSION_SECRET = process.env.SESSION_SECRET || ADMIN_PASSWORD;
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24h
+
+function signSession(expiry) {
+  const payload = String(expiry);
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verifySession(token) {
+  if (!token) return false;
+  const [payload, sig] = token.split('.');
+  if (!payload || !sig) return false;
+  const expected = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  return Number(payload) > Date.now();
+}
 
 function authMiddleware(req, res, next) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token || !sessions.has(token)) {
+  if (!verifySession(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
-  }
-  const expiry = sessions.get(token);
-  if (Date.now() > expiry) {
-    sessions.delete(token);
-    return res.status(401).json({ error: 'Session expired' });
   }
   next();
 }
@@ -93,8 +109,7 @@ app.post('/api/login', (req, res) => {
   if (!bcrypt.compareSync(password, hashedPassword)) {
     return res.status(401).json({ error: 'Invalid password' });
   }
-  const token = crypto.randomBytes(32).toString('hex');
-  sessions.set(token, Date.now() + 24 * 60 * 60 * 1000); // 24h
+  const token = signSession(Date.now() + SESSION_TTL);
   res.json({ token });
 });
 
@@ -572,8 +587,16 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🎨 Portfolio server running at http://localhost:${PORT}`);
-  console.log(`   📁 Works page: http://localhost:${PORT}/works`);
-  console.log(`   🔐 Admin page: http://localhost:${PORT}/admin\n`);
-});
+// Start a real server only when run directly (local dev).
+// On Vercel this module is imported by api/index.js as a serverless handler.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(``);
+    console.log(`🎨 Portfolio server running at http://localhost:${PORT}`);
+    console.log(`   📁 Works page: http://localhost:${PORT}/works`);
+    console.log(`   🔐 Admin page: http://localhost:${PORT}/admin`);
+    console.log(``);
+  });
+}
+
+module.exports = app;

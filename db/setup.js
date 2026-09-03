@@ -2,9 +2,14 @@ const mongoose = require('mongoose');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/artfolio';
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('📦 Connected to MongoDB'))
-  .catch(err => console.error('❌ Failed to connect to MongoDB', err));
+// Serverless functions re-run this module on every cold start, so the
+// connection is cached on globalThis to avoid opening a new pool each time.
+const cache = globalThis.__mongooseConn || (globalThis.__mongooseConn = { promise: null });
+if (!cache.promise) {
+  cache.promise = mongoose.connect(MONGODB_URI)
+    .then(m => { console.log('📦 Connected to MongoDB'); return m; })
+    .catch(err => { cache.promise = null; console.error('❌ Failed to connect to MongoDB', err); });
+}
 
 const workSchema = new mongoose.Schema({
   title_th: { type: String, default: '' },
@@ -26,7 +31,7 @@ const workSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now }
 });
 
-const Work = mongoose.model('Work', workSchema);
+const Work = mongoose.models.Work || mongoose.model('Work', workSchema);
 
 const tagSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
@@ -35,6 +40,6 @@ const tagSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now }
 });
 
-const Tag = mongoose.model('Tag', tagSchema);
+const Tag = mongoose.models.Tag || mongoose.model('Tag', tagSchema);
 
 module.exports = { Work, Tag };
