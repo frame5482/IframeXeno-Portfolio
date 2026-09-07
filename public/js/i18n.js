@@ -6,8 +6,8 @@ const translations = {
     hero_title: "GameDev · Illustration · 3D Artist · VFX Artist ✨",
     hero_bio: "สวัสดี! ยินดีต้อนรับสู่ portfolio ถ้าหา 3D Artist หรือ VFX Artist ติดต่อมาได้เลย",
     btn_view_works: " ดูผลงาน ",
-    section_what_i_do: "สิ่งที่ฉันทำ",
-    section_my_skill: "ทักษะของฉัน",
+    section_what_i_do: "สิ่งที่ผมทำ",
+    section_my_skill: "ทักษะของผม",
     skill_ill_title: "วาดภาพประกอบ",
     skill_ill_desc: "วาดภาพประกอบดิจิทัล ตั้งแต่ตัวละคร ฉาก ไปจนถึงงาน concept art",
     skill_3d_title: "3D Artist",
@@ -16,14 +16,14 @@ const translations = {
     skill_vfx_desc: "เชี่ยวชาญ Unity VFX graph และ Shader เพื่อสร้างเอฟเฟคสำหรับเกม และโปรแกรมต่างๆ",
     skill_gd_title: "Game Designer",
     skill_gd_desc: "ออกแบบระบบเกม กลไกการเล่น และการวางลำดับด่าน พร้อมทำต้นแบบใน Unity",
-    section_tools: "เครื่องมือที่ฉันใช้",
+    section_tools: "เครื่องมือที่ผมใช้",
     section_tools_sub: "ซอฟต์แวร์และโปรแกรม",
-    section_contact: "ติดต่อฉัน",
-    contact_sub: "หากคุณสนใจในผลงานของฉัน",
+    section_contact: "ติดต่อผม",
+    contact_sub: "หากคุณสนใจในผลงานของผม",
     footer_text: "สร้างด้วย 💜 โดย Amonphan Jamratsri · © 2026",
 
     // Works page
-    works_header: " ผลงานของฉัน ",
+    works_header: " ผลงานของผม ",
     works_sub: "รวมผลงานศิลปะ ภาพประกอบ และงานออกแบบ",
     tag_all: "✦ ทั้งหมด",
     loading_works: "กำลังโหลดผลงาน...",
@@ -235,8 +235,7 @@ const translations = {
   }
 };
 
-// Thai is the default for a first-time visitor; after that their own pick wins
-let currentLang = localStorage.getItem('selectedLang') || 'th';
+let currentLang = localStorage.getItem('selectedLang') || 'en';
 
 function setLanguage(lang) {
   currentLang = lang;
