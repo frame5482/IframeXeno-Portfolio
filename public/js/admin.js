@@ -16,7 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let authToken = localStorage.getItem('artfolio_token') || null;
 let editingId = null;
-let existingImages = []; // For editing — images to keep
+// Gallery images in the order they should appear on the work page. An entry is
+// either an image already saved on the work ({ kind: 'existing', url }) or a
+// file the user just picked ({ kind: 'new', file }). Holding both kinds in one
+// array is what lets them be dragged into any order relative to each other.
+let galleryItems = [];
 
 window.addEventListener('languageChanged', () => {
   loadAdminWorks();
@@ -177,8 +181,6 @@ function initFileUpload() {
 }
 
 // --- Multi-File Upload (Gallery Images) ---
-let pendingGalleryFiles = []; // New files to upload
-
 function initMultiFileUpload() {
   const area = document.getElementById('multiFileUploadArea');
   const input = document.getElementById('workImages');
@@ -186,7 +188,7 @@ function initMultiFileUpload() {
   input.addEventListener('change', () => {
     if (input.files.length > 0) {
       for (const file of input.files) {
-        pendingGalleryFiles.push(file);
+        galleryItems.push({ kind: 'new', file });
       }
       renderMultiPreviews();
     }
@@ -204,7 +206,7 @@ function initMultiFileUpload() {
     if (e.dataTransfer.files.length) {
       for (const file of e.dataTransfer.files) {
         if (file.type.startsWith('image/')) {
-          pendingGalleryFiles.push(file);
+          galleryItems.push({ kind: 'new', file });
         }
       }
       renderMultiPreviews();
@@ -266,39 +268,83 @@ function renderMultiPreviews() {
   const container = document.getElementById('multiImagePreviews');
   container.innerHTML = '';
 
-  // Existing images (when editing)
-  existingImages.forEach((url, idx) => {
-    const wrapper = createPreviewItem(url, 'existing', idx);
-    container.appendChild(wrapper);
-  });
-
-  // New files
-  pendingGalleryFiles.forEach((file, idx) => {
-    const url = URL.createObjectURL(file);
-    const wrapper = createPreviewItem(url, 'new', idx, file.name);
-    container.appendChild(wrapper);
+  galleryItems.forEach((item, idx) => {
+    if (item.kind === 'new' && !item.previewUrl) {
+      // Cached so re-rendering after every drag doesn't leak object URLs
+      item.previewUrl = URL.createObjectURL(item.file);
+    }
+    const src = item.kind === 'existing' ? item.url : item.previewUrl;
+    const name = item.kind === 'new' ? item.file.name : null;
+    container.appendChild(createPreviewItem(src, item.kind, idx, name));
   });
 }
 
 function createPreviewItem(src, type, index, name) {
   const wrapper = document.createElement('div');
   wrapper.className = 'multi-preview-item';
+  wrapper.draggable = true;
+  wrapper.title = 'Drag to reorder';
   wrapper.innerHTML = `
-    <img src="${src}" alt="Preview ${index + 1}">
+    <img src="${src}" alt="Preview ${index + 1}" draggable="false">
     <button type="button" class="multi-preview-remove" title="Remove this image">✖</button>
     <span class="multi-preview-label">${type === 'existing' ? '📌' : '✨'} ${name || (index + 1)}</span>
   `;
 
   wrapper.querySelector('.multi-preview-remove').addEventListener('click', () => {
-    if (type === 'existing') {
-      existingImages.splice(index, 1);
-    } else {
-      pendingGalleryFiles.splice(index, 1);
-    }
+    const [removed] = galleryItems.splice(index, 1);
+    if (removed && removed.previewUrl) URL.revokeObjectURL(removed.previewUrl);
     renderMultiPreviews();
   });
 
+  attachPreviewReorder(wrapper, index);
   return wrapper;
+}
+
+// Index of the thumbnail currently being dragged, or null when the drag is
+// something else (e.g. files coming in from the desktop)
+let galleryDragIndex = null;
+
+function attachPreviewReorder(wrapper, index) {
+  wrapper.addEventListener('dragstart', (e) => {
+    galleryDragIndex = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'gallery-reorder');
+    wrapper.classList.add('dragging');
+  });
+
+  wrapper.addEventListener('dragend', () => {
+    galleryDragIndex = null;
+    wrapper.classList.remove('dragging');
+    document.querySelectorAll('.multi-preview-item.drag-over')
+      .forEach(el => el.classList.remove('drag-over'));
+  });
+
+  wrapper.addEventListener('dragover', (e) => {
+    if (galleryDragIndex === null) return; // let file drops fall through
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  });
+
+  wrapper.addEventListener('dragenter', () => {
+    if (galleryDragIndex !== null && galleryDragIndex !== index) {
+      wrapper.classList.add('drag-over');
+    }
+  });
+
+  wrapper.addEventListener('dragleave', () => wrapper.classList.remove('drag-over'));
+
+  wrapper.addEventListener('drop', (e) => {
+    if (galleryDragIndex === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    wrapper.classList.remove('drag-over');
+    if (galleryDragIndex === index) return;
+
+    const [moved] = galleryItems.splice(galleryDragIndex, 1);
+    galleryItems.splice(index, 0, moved);
+    galleryDragIndex = null;
+    renderMultiPreviews();
+  });
 }
 
 // --- Dynamic Inputs (Videos & External Images) ---
@@ -337,6 +383,87 @@ function clearDynamicInputs(containerId, defaultHtml) {
 }
 
 // --- Upload Work ---
+// --- Image compression + direct-to-Cloudinary upload ---
+// Vercel caps a request body at ~4.5MB and answers anything bigger with a 413,
+// so images never travel through our own API. They are shrunk in the browser
+// and sent straight to Cloudinary; only the resulting URLs go to /api/works.
+const MAX_IMAGE_DIMENSION = 1920;
+const IMAGE_QUALITY = 0.85;
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+async function compressImage(file) {
+  // SVG is vector and a GIF may be animated - re-encoding either would ruin it
+  if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
+
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file;
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  // WebP keeps transparency and compresses far harder than PNG
+  let blob = await canvasToBlob(canvas, 'image/webp', IMAGE_QUALITY);
+  let ext = 'webp';
+  if (!blob || blob.type !== 'image/webp') {
+    blob = await canvasToBlob(canvas, 'image/jpeg', IMAGE_QUALITY);
+    ext = 'jpg';
+  }
+  // Keep the original if compressing somehow made it bigger
+  if (!blob || blob.size >= file.size) return file;
+
+  const name = (file.name || 'image').replace(/\.[^.]+$/, '') + '.' + ext;
+  return new File([blob], name, { type: blob.type });
+}
+
+async function uploadToCloudinary(file, onProgress) {
+  const sigRes = await fetch('/api/upload-signature', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  });
+  if (sigRes.status === 401) {
+    authToken = null;
+    localStorage.removeItem('artfolio_token');
+    hideAdminPanel();
+    throw new Error('Session expired, please login again');
+  }
+  if (!sigRes.ok) throw new Error('Could not get an upload signature from the server');
+  const sig = await sigRes.json();
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('api_key', sig.apiKey);
+  fd.append('timestamp', sig.timestamp);
+  fd.append('folder', sig.folder);
+  fd.append('signature', sig.signature);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (err) {}
+      if (xhr.status >= 200 && xhr.status < 300 && data && data.secure_url) {
+        resolve(data.secure_url);
+      } else {
+        const msg = (data && data.error && data.error.message) || `Cloudinary rejected the upload (${xhr.status})`;
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error while uploading to Cloudinary'));
+    xhr.send(fd);
+  });
+}
+
 function initUpload() {
   const form = document.getElementById('uploadForm');
   form.addEventListener('submit', async (e) => {
@@ -375,23 +502,6 @@ function initUpload() {
     if (externalImageUrl) formData.append('external_image_url', externalImageUrl);
     externalImages.forEach(img => formData.append('external_images', img));
     
-    if (croppedBlob) {
-      formData.append('image', croppedBlob, originalFileName || 'cropped_image.jpg');
-    } else if (imageFile) {
-      formData.append('image', imageFile);
-    }
-
-    // Append gallery images
-    pendingGalleryFiles.forEach(file => {
-      formData.append('images', file);
-    });
-
-    // For editing, ALWAYS send list of existing images to keep (even if empty)
-    // This tells the server exactly which images to retain
-    if (editingId) {
-      formData.append('keep_existing_images', JSON.stringify(existingImages));
-    }
-
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `/api/works/${editingId}` : '/api/works';
 
@@ -401,18 +511,48 @@ function initUpload() {
     submitBtn.disabled = true;
 
     try {
+      // Step 1: shrink each image and push it straight to Cloudinary
+      const mainImage = croppedBlob
+        ? new File([croppedBlob], originalFileName || 'cropped_image.jpg', { type: croppedBlob.type || 'image/jpeg' })
+        : imageFile;
+      const newFileCount = galleryItems.filter(i => i.kind === 'new').length + (mainImage ? 1 : 0);
+      let uploadedCount = 0;
+
+      const sendToCloud = async (file) => {
+        const label = `${++uploadedCount}/${newFileCount}`;
+        submitBtn.innerHTML = `⏳ Compressing ${label}...`;
+        const compressed = await compressImage(file);
+        return uploadToCloudinary(compressed, (ratio) => {
+          submitBtn.innerHTML = `⏳ Uploading ${label} - ${Math.round(ratio * 100)}%`;
+        });
+      };
+
+      if (mainImage) {
+        formData.append('uploaded_image_url', await sendToCloud(mainImage));
+      }
+
+      // Walk the gallery in display order so the saved order matches what the
+      // admin arranged: images already on the work pass straight through, new
+      // files are uploaded and take their slot.
+      const galleryUrls = [];
+      for (const item of galleryItems) {
+        galleryUrls.push(item.kind === 'existing' ? item.url : await sendToCloud(item.file));
+      }
+
+      if (editingId) {
+        // On an edit this field is the complete, ordered list of gallery images
+        // to keep — anything missing from it gets deleted server-side.
+        formData.append('keep_existing_images', JSON.stringify(galleryUrls));
+      } else if (galleryUrls.length > 0) {
+        formData.append('uploaded_images', JSON.stringify(galleryUrls));
+      }
+
+      // Step 2: save the work itself - a few KB of text, well under any limit
+      submitBtn.innerHTML = '⏳ Saving...';
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open(method, url);
         xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const loadedMB = (e.loaded / 1024 / 1024).toFixed(1);
-            const totalMB = (e.total / 1024 / 1024).toFixed(1);
-            submitBtn.innerHTML = `⏳ Uploading... ${loadedMB}/${totalMB}MB`;
-          }
-        };
 
         xhr.onload = () => {
           try {
@@ -430,7 +570,7 @@ function initUpload() {
               }
             }
           } catch(err) {
-            reject({ error: 'Error reading data' });
+            reject({ error: `Server returned an unreadable response (HTTP ${xhr.status})` });
           }
         };
 
@@ -458,7 +598,7 @@ function initUpload() {
       loadAdminTags();
     } catch (err) {
       console.error('Upload error:', err);
-      showToast(err.error || 'Error uploading', 'error');
+      showToast(err.error || err.message || 'Error uploading', 'error');
     } finally {
       submitBtn.innerHTML = originalBtnText;
       submitBtn.disabled = false;
@@ -470,8 +610,8 @@ function initUpload() {
 
 function cancelEdit() {
   editingId = null;
-  existingImages = [];
-  pendingGalleryFiles = [];
+  galleryItems.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+  galleryItems = [];
   document.getElementById('workTitleTh').value = '';
   document.getElementById('workTitleEn').value = '';
   document.getElementById('workTitleJp').value = '';
@@ -678,8 +818,7 @@ function editWork(id) {
   }
 
   // Load existing gallery images
-  existingImages = work.images ? [...work.images] : [];
-  pendingGalleryFiles = [];
+  galleryItems = (work.images || []).map(url => ({ kind: 'existing', url }));
   renderMultiPreviews();
 
   document.getElementById('submitBtn').innerHTML = '💾 Save Changes';

@@ -188,6 +188,22 @@
   box-shadow: 0 4px 15px rgba(157, 111, 219, 0.2);
 }
 
+/* Drag-to-reorder feedback for gallery thumbnails */
+.multi-preview-item {
+  cursor: grab;
+}
+
+.multi-preview-item.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.multi-preview-item.drag-over {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 3px rgba(255, 171, 216, 0.45);
+  transform: scale(1.04);
+}
+
 .multi-preview-item img {
   width: 100%;
   height: 100%;

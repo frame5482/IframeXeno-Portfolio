@@ -315,6 +315,22 @@ app.put('/api/works/:id/star', authMiddleware, async (req, res) => {
   }
 });
 
+// Hand the browser a short-lived signature so it can upload straight to
+// Cloudinary. Vercel caps a request body at ~4.5MB, so routing large images
+// through this function would fail with a 413 before our code ever runs.
+app.post("/api/upload-signature", authMiddleware, (req, res) => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    return res.status(503).json({ error: "Cloudinary is not configured" });
+  }
+  const timestamp = Math.round(Date.now() / 1000);
+  const folder = "web-portfolio";
+  const signature = cloudinary.utils.api_sign_request({ folder, timestamp }, apiSecret);
+  res.json({ cloudName, apiKey, timestamp, folder, signature });
+});
+
 // Upload new work (auth required)
 app.post('/api/works', authMiddleware, (req, res, next) => {
   uploadMulti(req, res, (err) => {
@@ -332,9 +348,13 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
       return res.status(400).json({ error: 'Title and tags are required' });
     }
 
-    // Primary image
+    // Primary image. A direct-to-Cloudinary upload ranks with a multipart file
+    // upload; a typed-in external URL is the last fallback.
     const mainFile = req.files && req.files['image'] ? req.files['image'][0] : null;
-    const image_url = mainFile ? mainFile.path : convertDriveLink(external_image_url || '');
+    const uploadedImageUrl = (req.body.uploaded_image_url || '').trim();
+    const image_url = mainFile
+      ? mainFile.path
+      : (uploadedImageUrl || convertDriveLink(external_image_url || ''));
 
     if (!image_url && !video_url) {
       return res.status(400).json({ error: 'Image or YouTube URL is required' });
@@ -345,6 +365,7 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
     if (req.files && req.files['images']) {
       images = req.files['images'].map(f => f.path);
     }
+    images = images.concat(parseUrlList(req.body.uploaded_images));
     // Parse external image URLs if provided
     let externalImages = req.body.external_images;
     if (externalImages) {
@@ -394,6 +415,17 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Helper to read a list of URLs sent as a form field (JSON array or single value)
+function parseUrlList(value) {
+  if (!value) return [];
+  let list = value;
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list); } catch (e) { list = [list]; }
+  }
+  if (!Array.isArray(list)) list = [list];
+  return list.filter(u => u && typeof u === 'string' && u.trim());
+}
 
 // Helper to convert Google Drive links
 function convertDriveLink(url) {
@@ -477,10 +509,14 @@ app.put('/api/works/:id', authMiddleware, (req, res, next) => {
     // Handle main image
     let new_image_url = work.image_url;
     const mainFile = req.files && req.files['image'] ? req.files['image'][0] : null;
+    const uploadedImageUrl = (req.body.uploaded_image_url || '').trim();
     if (mainFile) {
       new_image_url = mainFile.path;
       // Only delete old main image if it's being replaced with a NEW upload
       await deleteLocalFile(work.image_url, 'main image replaced by new upload');
+    } else if (uploadedImageUrl && uploadedImageUrl !== work.image_url) {
+      new_image_url = uploadedImageUrl;
+      await deleteLocalFile(work.image_url, 'main image replaced by direct upload');
     } else if (external_image_url && external_image_url !== work.image_url) {
       new_image_url = convertDriveLink(external_image_url);
       // Only delete old main image if the URL actually changed
@@ -522,6 +558,7 @@ app.put('/api/works/:id', authMiddleware, (req, res, next) => {
       const uploadedImages = req.files['images'].map(f => f.path);
       newImages = newImages.concat(uploadedImages);
     }
+    newImages = newImages.concat(parseUrlList(req.body.uploaded_images));
     // Add external image URLs
     let externalImages = req.body.external_images;
     if (externalImages) {
