@@ -14,6 +14,8 @@ const translations = {
     skill_3d_desc: "สร้างโมเดลตัวละคร 3 มิติ โมเดลประกอบฉากสำหรับเกม หรือภาพ 3D เพื่อใช้ในงานต่างๆ",
     skill_vfx_title: "VFX Artist",
     skill_vfx_desc: "เชี่ยวชาญ Unity VFX graph และ Shader เพื่อสร้างเอฟเฟคสำหรับเกม และโปรแกรมต่างๆ",
+    skill_gd_title: "Game Designer",
+    skill_gd_desc: "ออกแบบระบบเกม กลไกการเล่น และการวางลำดับด่าน พร้อมทำต้นแบบใน Unity",
     section_tools: "เครื่องมือที่ฉันใช้",
     section_tools_sub: "ซอฟต์แวร์และโปรแกรม",
     section_contact: "ติดต่อฉัน",
@@ -90,6 +92,8 @@ const translations = {
     skill_3d_desc: "Creating 3D character models, props for games, or 3D images for various uses.",
     skill_vfx_title: "VFX Artist",
     skill_vfx_desc: "Specializing in Unity VFX Graph and Shaders to create effects for games and applications.",
+    skill_gd_title: "Game Designer",
+    skill_gd_desc: "Designing game systems, mechanics and level flow, then prototyping them in Unity.",
     section_tools: "Tools I Use",
     section_tools_sub: "Software & Applications",
     section_contact: "Contact Me",
@@ -166,6 +170,8 @@ const translations = {
     skill_3d_desc: "ゲーム用の3Dキャラクター、プロップ、または様々な用途の3D画像制作。",
     skill_vfx_title: "VFXアーティスト",
     skill_vfx_desc: "Unity VFX GraphやShaderを駆使し、ゲームやアプリのエフェクトを制作。",
+    skill_gd_title: "ゲームデザイナー",
+    skill_gd_desc: "ゲームシステムやメカニクス、レベル設計を考え、Unityでプロトタイプを制作。",
     section_tools: "使用ツール",
     section_tools_sub: "ソフトウェア・アプリケーション",
     section_contact: "お問い合わせ",
@@ -229,7 +235,8 @@ const translations = {
   }
 };
 
-let currentLang = localStorage.getItem('selectedLang') || 'en';
+// Thai is the default for a first-time visitor; after that their own pick wins
+let currentLang = localStorage.getItem('selectedLang') || 'th';
 
 function setLanguage(lang) {
   currentLang = lang;
