@@ -371,6 +371,13 @@ body::before {
   background: var(--lavender-light);
 }
 
+/* The Admin entry keeps its place in the nav but is deliberately not a link —
+   the admin panel is reached by typing /admin directly. */
+.nav-links a:not([href]) {
+  pointer-events: none;
+  cursor: default;
+}
+
 .nav-links a.active {
   color: white;
   background: var(--gradient-btn);
