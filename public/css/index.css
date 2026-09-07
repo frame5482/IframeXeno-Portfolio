@@ -118,6 +118,9 @@
 .tool-icon {
   width: 56px; height: 56px;
   border-radius: var(--radius-md);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   transition: transform var(--transition-med);
 }
@@ -126,10 +129,12 @@
 
 .tool-icon svg { width: 32px; height: 32px; }
 
-.unity-icon  { background: #1a1a2e; color: #ffffff; }
-.maya-icon   { background: #d4f4f4; color: #00a0a0; }
-.blender-icon { background: #fff3e0; color: #E87D0D; }
-.csp-icon    { background: #fde8e8; color: #CF1313; }
+.tool-icon img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  border-radius: var(--radius-md);
+}
 
 .tool-name {
   font-family: var(--font-heading);
