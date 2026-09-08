@@ -47,6 +47,21 @@
   background-clip: text;
 }
 
+.hero-edu {
+  display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+  margin-bottom: 0.9rem;
+}
+
+.hero-edu-uni {
+  font-family: var(--font-heading); font-size: 0.9rem;
+  font-weight: 600; color: var(--text-light); letter-spacing: 0.02em;
+}
+
+.hero-edu-major {
+  font-size: 0.78rem; font-weight: 500; color: var(--text-light);
+  opacity: 0.75; letter-spacing: 0.06em; text-transform: uppercase;
+}
+
 .hero-title {
   font-family: var(--font-heading); font-size: 1.15rem;
   font-weight: 500; color: var(--text-light); margin-bottom: 1rem;
@@ -161,6 +176,8 @@
 
 @media (max-width: 600px) {
   .hero-name { font-size: 2rem; }
+  .hero-edu-uni { font-size: 0.82rem; }
+  .hero-edu-major { font-size: 0.72rem; }
   .avatar-ring { width: 140px; height: 140px; }
   .skills-grid { grid-template-columns: 1fr; }
   .tools-grid { grid-template-columns: repeat(2, 1fr); }
