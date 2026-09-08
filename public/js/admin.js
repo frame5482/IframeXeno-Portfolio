@@ -390,6 +390,14 @@ function clearDynamicInputs(containerId, defaultHtml) {
 const MAX_IMAGE_DIMENSION = 1920;
 const IMAGE_QUALITY = 0.85;
 
+// Sizes shown to the admin while uploading: KB under 0.1MB, otherwise MB
+function formatSize(bytes) {
+  if (typeof bytes !== 'number' || !isFinite(bytes)) return '?';
+  const mb = bytes / (1024 * 1024);
+  if (mb < 0.1) return Math.round(bytes / 1024) + ' KB';
+  return mb.toFixed(mb < 10 ? 2 : 1) + ' MB';
+}
+
 function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality));
 }
@@ -447,7 +455,7 @@ async function uploadToCloudinary(file, onProgress) {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total);
     };
     xhr.onload = () => {
       let data = null;
@@ -517,14 +525,18 @@ function initUpload() {
         : imageFile;
       const newFileCount = galleryItems.filter(i => i.kind === 'new').length + (mainImage ? 1 : 0);
       let uploadedCount = 0;
+      let uploadedBytes = 0;
 
       const sendToCloud = async (file) => {
         const label = `${++uploadedCount}/${newFileCount}`;
         submitBtn.innerHTML = `⏳ Compressing ${label}...`;
         const compressed = await compressImage(file);
-        return uploadToCloudinary(compressed, (ratio) => {
-          submitBtn.innerHTML = `⏳ Uploading ${label} - ${Math.round(ratio * 100)}%`;
+        const url = await uploadToCloudinary(compressed, (loaded, total) => {
+          const pct = Math.round((loaded / total) * 100);
+          submitBtn.innerHTML = `⏳ Uploading ${label} · ${formatSize(loaded)} / ${formatSize(total)} (${pct}%)`;
         });
+        uploadedBytes += compressed.size;
+        return url;
       };
 
       if (mainImage) {
@@ -592,7 +604,8 @@ function initUpload() {
         await new Promise(r => setTimeout(r, 1000)); // wait 1 sec to let user see ticks
       }
 
-      showToast(editingId ? 'Update successful! ✨' : 'Upload successful! ✨');
+      const sizeNote = uploadedBytes > 0 ? ` · ${formatSize(uploadedBytes)} uploaded` : '';
+      showToast((editingId ? 'Update successful! ✨' : 'Upload successful! ✨') + sizeNote);
       cancelEdit();
       loadAdminWorks();
       loadAdminTags();
