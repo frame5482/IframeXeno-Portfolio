@@ -14,6 +14,9 @@ let currentWork = null;
 let allMedia = [];   // Array of { type: 'image'|'video', src: string, thumb: string }
 let currentMediaIndex = 0;
 let fullscreenIndex = 0;
+let workDocs = [];         // Array of { title, url, embed }
+let currentDocIndex = 0;
+let docObserver = null;    // Defers the iframe load until the section is scrolled to
 
 window.addEventListener('languageChanged', () => {
   renderDetail();
@@ -50,6 +53,47 @@ function getYouTubeId(url) {
 function getYouTubeThumbnail(url) {
   const id = getYouTubeId(url);
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
+}
+
+// --- Document Embed Helpers ---
+// Google's share URLs are not embeddable as-is; each product has its own
+// preview/embed form. Anything we don't recognise is passed through untouched
+// (a direct .pdf link, for instance, renders in the iframe on its own).
+function getDocEmbedUrl(url) {
+  if (!url) return '';
+  const u = url.trim();
+
+  // Published-to-web links: docs.google.com/<kind>/d/e/<token>/pub|pubhtml
+  let m = u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/e\/([a-zA-Z0-9_-]+)/);
+  if (m) {
+    const [, kind, id] = m;
+    if (kind === 'presentation') return `https://docs.google.com/presentation/d/e/${id}/embed?start=false&loop=false`;
+    if (kind === 'spreadsheets') return `https://docs.google.com/spreadsheets/d/e/${id}/pubhtml?widget=true&headers=false`;
+    return `https://docs.google.com/document/d/e/${id}/pub?embedded=true`;
+  }
+
+  // Normal share links: docs.google.com/<kind>/d/<id>/edit?usp=sharing
+  m = u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) {
+    const [, kind, id] = m;
+    if (kind === 'presentation') return `https://docs.google.com/presentation/d/${id}/embed?start=false&loop=false`;
+    if (kind === 'spreadsheets') return `https://docs.google.com/spreadsheets/d/${id}/preview`;
+    return `https://docs.google.com/document/d/${id}/preview`;
+  }
+
+  // Drive files (PDF and friends), including links already rewritten to uc?id=
+  m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]*&)*id=)([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+
+  return u;
+}
+
+function getDocIcon(url) {
+  const u = (url || '').toLowerCase();
+  if (u.includes('/presentation/')) return '📊';
+  if (u.includes('/spreadsheets/')) return '📈';
+  if (u.includes('drive.google.com') || u.endsWith('.pdf')) return '📕';
+  return '📄';
 }
 
 // --- Load Work Detail ---
@@ -193,6 +237,104 @@ function renderDetail() {
   } else {
     document.getElementById('detailFullDesc').style.display = 'none';
   }
+
+  // Documents at the very bottom
+  renderDocuments();
+}
+
+// --- Documents ---
+function renderDocuments() {
+  const section = document.getElementById('detailDocs');
+  const tabsEl = document.getElementById('docTabs');
+  if (!section || !tabsEl) return;
+
+  workDocs = (currentWork?.documents || [])
+    .filter(d => d && d.url)
+    .map(d => ({ title: d.title || '', url: d.url, embed: getDocEmbedUrl(d.url) }));
+
+  if (workDocs.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  // Tabs only make sense once there is something to switch between
+  tabsEl.innerHTML = '';
+  if (workDocs.length > 1) {
+    workDocs.forEach((doc, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'doc-tab' + (i === currentDocIndex ? ' active' : '');
+      const fallback = `${window.getI18n ? getI18n('doc_untitled') : 'Document'} ${i + 1}`;
+      btn.textContent = `${getDocIcon(doc.url)} ${doc.title || fallback}`;
+      btn.addEventListener('click', () => selectDocument(i));
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  if (currentDocIndex >= workDocs.length) currentDocIndex = 0;
+  selectDocument(currentDocIndex);
+}
+
+function selectDocument(index) {
+  const doc = workDocs[index];
+  if (!doc) return;
+  currentDocIndex = index;
+
+  const viewer = document.getElementById('docViewer');
+  const frame = document.getElementById('docFrame');
+  const openLink = document.getElementById('docOpenLink');
+
+  openLink.href = doc.url;
+
+  document.querySelectorAll('.doc-tab').forEach((tab, i) => {
+    tab.classList.toggle('active', i === index);
+  });
+
+  // A language switch re-runs renderDetail(); don't reload an identical iframe.
+  if (frame.dataset.loadedSrc === doc.embed) return;
+
+  viewer.classList.remove('loaded');
+  frame.onload = () => viewer.classList.add('loaded');
+
+  // The first document waits for the section to come into view; switching tabs
+  // afterwards loads immediately since the reader is already looking at it.
+  if (frame.dataset.armed === '1') {
+    frame.dataset.loadedSrc = doc.embed;
+    frame.src = doc.embed;
+  } else {
+    frame.dataset.pending = doc.embed;
+    armDocLazyLoad();
+  }
+}
+
+function armDocLazyLoad() {
+  const section = document.getElementById('detailDocs');
+  const frame = document.getElementById('docFrame');
+  if (!section || !frame || docObserver) return;
+
+  const load = () => {
+    frame.dataset.armed = '1';
+    if (frame.dataset.pending) {
+      frame.dataset.loadedSrc = frame.dataset.pending;
+      frame.src = frame.dataset.pending;
+    }
+  };
+
+  if (!('IntersectionObserver' in window)) {
+    load();
+    return;
+  }
+
+  docObserver = new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting)) {
+      load();
+      docObserver.disconnect();
+      docObserver = null;
+    }
+  }, { rootMargin: '400px' });
+
+  docObserver.observe(section);
 }
 
 // --- Gallery ---

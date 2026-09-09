@@ -142,6 +142,7 @@ app.get('/api/works', async (req, res) => {
         images: w.images || [],
         video_url: w.video_url,
         videos: w.videos || [],
+        documents: w.documents || [],
         tags: w.tags,
         is_starred: w.is_starred || false,
         order: w.order || 0,
@@ -177,6 +178,7 @@ app.get('/api/works/:id', async (req, res) => {
       images: work.images || [],
       video_url: work.video_url,
       videos: work.videos || [],
+      documents: work.documents || [],
       tags: work.tags,
       is_starred: work.is_starred || false,
       order: work.order || 0,
@@ -387,7 +389,10 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
       }
     }
     parsedVideos = parsedVideos.filter(u => u && u.trim());
-    
+
+    // Reference documents (Google Docs / Slides / Drive links)
+    const parsedDocuments = parseDocumentList(req.body.documents);
+
     const newWork = new Work({
       title,
       title_th: title_th || '',
@@ -401,13 +406,15 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
       images,
       video_url: video_url || null,
       videos: parsedVideos,
+      documents: parsedDocuments,
       tags
     });
     await newWork.save();
 
     res.json({
       id: newWork._id,
-      title, description, image_url, images, video_url: video_url || null, videos: parsedVideos, tags,
+      title, description, image_url, images, video_url: video_url || null, videos: parsedVideos,
+      documents: parsedDocuments, tags,
       is_starred: false, order: 0,
       message: 'Work uploaded successfully ✨'
     });
@@ -425,6 +432,24 @@ function parseUrlList(value) {
   }
   if (!Array.isArray(list)) list = [list];
   return list.filter(u => u && typeof u === 'string' && u.trim());
+}
+
+// Documents are sent as a JSON array of { title, url }. Anything that is not a
+// well-formed entry with a URL is dropped rather than saved half-empty.
+function parseDocumentList(value) {
+  if (!value) return [];
+  let list = value;
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list); } catch (e) { return []; }
+  }
+  if (!Array.isArray(list)) list = [list];
+  return list
+    .map(d => (typeof d === 'string' ? { title: '', url: d } : d))
+    .filter(d => d && typeof d.url === 'string' && d.url.trim())
+    .map(d => ({
+      title: (d.title || '').toString().trim().slice(0, 120),
+      url: d.url.trim()
+    }));
 }
 
 // Helper to convert Google Drive links
@@ -581,6 +606,12 @@ app.put('/api/works/:id', authMiddleware, (req, res, next) => {
     }
     parsedVideos = parsedVideos.filter(u => u && u.trim());
 
+    // Reference documents. An absent field keeps whatever is already stored so a
+    // client that doesn't know about documents can't wipe them.
+    const parsedDocuments = req.body.documents !== undefined
+      ? parseDocumentList(req.body.documents)
+      : (work.documents || []);
+
     work.title = title;
     work.title_th = title_th || '';
     work.title_en = title_en || '';
@@ -594,6 +625,7 @@ app.put('/api/works/:id', authMiddleware, (req, res, next) => {
     work.image_url = new_image_url;
     work.images = newImages;
     work.videos = parsedVideos;
+    work.documents = parsedDocuments;
     
     await work.save();
 
@@ -605,6 +637,7 @@ app.put('/api/works/:id', authMiddleware, (req, res, next) => {
       images: work.images,
       video_url: work.video_url, 
       videos: work.videos,
+      documents: work.documents,
       tags: work.tags,
       message: 'Work updated successfully ✨'
     });

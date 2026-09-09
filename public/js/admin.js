@@ -357,6 +357,10 @@ function initDynamicInputs() {
     addDynamicInput('externalImageInputsContainer', 'external_images', 'work-ext-image-input', 'Insert additional image link (e.g., https://...)');
   });
 
+  document.getElementById('addDocumentBtn').addEventListener('click', () => {
+    addDocumentInput();
+  });
+
   // Event delegation for remove buttons
   document.addEventListener('click', (e) => {
     if (e.target.classList.contains('remove-input-btn')) {
@@ -380,6 +384,34 @@ function addDynamicInput(containerId, name, className, placeholder, value = '') 
 
 function clearDynamicInputs(containerId, defaultHtml) {
   document.getElementById(containerId).innerHTML = defaultHtml;
+}
+
+// Documents need two fields per row (a label and the Google Docs link), so they
+// don't fit the single-input helper above.
+function addDocumentInput(title = '', url = '') {
+  const container = document.getElementById('documentInputsContainer');
+  const row = document.createElement('div');
+  row.className = 'dynamic-input-row doc-input-row';
+  row.style.cssText = 'display:flex; gap:10px; margin-bottom:0.5rem; flex-wrap:wrap; animation: cardFadeIn 0.3s ease;';
+  row.innerHTML = `
+    <input type="text" class="work-doc-title-input" placeholder="${getI18n('placeholder_doc_title')}" style="flex:1 1 180px;">
+    <input type="url" class="work-doc-url-input" placeholder="${getI18n('placeholder_doc_url')}" style="flex:2 1 280px;">
+    <button type="button" class="btn btn-secondary btn-sm remove-input-btn" style="padding:0 0.8rem; font-size:1.2rem;">✕</button>
+  `;
+  // Set through .value so a title containing quotes can't break out of the markup
+  row.querySelector('.work-doc-title-input').value = title;
+  row.querySelector('.work-doc-url-input').value = url;
+  container.appendChild(row);
+}
+
+// Only rows with a URL count; a title on its own is dropped.
+function collectDocuments() {
+  return Array.from(document.querySelectorAll('#documentInputsContainer .doc-input-row'))
+    .map(row => ({
+      title: row.querySelector('.work-doc-title-input').value.trim(),
+      url: row.querySelector('.work-doc-url-input').value.trim()
+    }))
+    .filter(d => d.url);
 }
 
 // --- Upload Work ---
@@ -486,6 +518,9 @@ function initUpload() {
     const extImgInputs = document.querySelectorAll('.work-ext-image-input');
     const externalImages = Array.from(extImgInputs).map(i => i.value.trim()).filter(Boolean);
 
+    // Collect reference documents
+    const documents = collectDocuments();
+
     const imageFile = document.getElementById('workImage').files[0];
     const externalImageUrl = document.getElementById('workImageUrl').value.trim();
 
@@ -509,6 +544,7 @@ function initUpload() {
 
     if (externalImageUrl) formData.append('external_image_url', externalImageUrl);
     externalImages.forEach(img => formData.append('external_images', img));
+    formData.append('documents', JSON.stringify(documents));
     
     const method = editingId ? 'PUT' : 'POST';
     const url = editingId ? `/api/works/${editingId}` : '/api/works';
@@ -648,6 +684,9 @@ function cancelEdit() {
       <button type="button" class="btn btn-secondary btn-sm remove-input-btn" style="padding:0 0.8rem; font-size:1.2rem; display:none;">✕</button>
     </div>
   `);
+  document.getElementById('documentInputsContainer').innerHTML = '';
+  addDocumentInput();
+  document.querySelector('#documentInputsContainer .remove-input-btn').style.display = 'none';
 
   document.getElementById('submitBtn').innerHTML = '✨ Upload';
   document.getElementById('cancelEditBtn').style.display = 'none';
@@ -817,6 +856,16 @@ function editWork(id) {
     </div>
   `;
   
+  // Populate reference documents
+  document.getElementById('documentInputsContainer').innerHTML = '';
+  const workDocuments = work.documents && work.documents.length > 0 ? work.documents : [];
+  if (workDocuments.length === 0) {
+    addDocumentInput();
+    document.querySelector('#documentInputsContainer .remove-input-btn').style.display = 'none';
+  } else {
+    workDocuments.forEach(d => addDocumentInput(d.title || '', d.url || ''));
+  }
+
   if (work.image_url && work.image_url.startsWith('http')) {
     document.getElementById('workImageUrl').value = work.image_url;
   } else {

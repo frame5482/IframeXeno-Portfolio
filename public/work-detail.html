@@ -146,6 +146,28 @@
         <h2 data-i18n="label_more_details">📝 More details</h2>
         <div class="full-desc-content" id="fullDescContent"></div>
       </div>
+
+      <!-- Documents Section (Google Docs / Slides / Drive) -->
+      <div class="detail-docs glass-card" id="detailDocs" style="display:none;">
+        <div class="docs-header">
+          <h2 data-i18n="label_documents">📄 Documents</h2>
+          <a class="doc-open-link" id="docOpenLink" href="#" target="_blank" rel="noopener noreferrer">
+            <span data-i18n="btn_open_doc">Open in new tab</span> ↗
+          </a>
+        </div>
+        <div class="doc-tabs" id="docTabs"></div>
+        <div class="doc-viewer" id="docViewer">
+          <div class="doc-placeholder" id="docPlaceholder">
+            <div class="spinner"></div>
+            <p data-i18n="doc_loading">Loading document...</p>
+          </div>
+          <iframe id="docFrame" title="Document preview" loading="lazy"
+            allow="autoplay" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+        <p class="doc-hint" data-i18n="doc_hint">
+          If the document does not appear, its sharing setting may not be "Anyone with the link".
+        </p>
+      </div>
     </div>
   </main>
 

@@ -178,6 +178,23 @@
               </div>
               <div class="multi-image-previews" id="multiImagePreviews"></div>
             </div>
+
+            <!-- Reference documents (Google Docs / Slides / Drive) -->
+            <div class="form-group">
+              <label data-i18n="label_documents_input">📄 Documents (Google Docs links)</label>
+              <small style="color: var(--text-lighter); font-size: 0.8rem; display: block; margin-bottom: 0.6rem;" data-i18n="documents_sub">
+                Paste a Google Docs / Slides / Sheets or Drive PDF link and it will be readable at the bottom of the detail page (sharing must be "Anyone with the link").
+              </small>
+              <div id="documentInputsContainer">
+                <div class="dynamic-input-row doc-input-row" style="display:flex; gap:10px; margin-bottom:0.5rem; flex-wrap:wrap;">
+                  <input type="text" class="work-doc-title-input" placeholder="Document name (e.g., GDD)" style="flex:1 1 180px;" data-i18n="placeholder_doc_title">
+                  <input type="url" class="work-doc-url-input" placeholder="https://docs.google.com/document/d/..." style="flex:2 1 280px;" data-i18n="placeholder_doc_url">
+                  <button type="button" class="btn btn-secondary btn-sm remove-input-btn" style="padding:0 0.8rem; font-size:1.2rem; display:none;">✕</button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="addDocumentBtn" style="margin-top:0.3rem; background:var(--bg-alt);" data-i18n="btn_add_doc">+ Add Document</button>
+            </div>
+
             <div style="display: flex; gap: 10px;">
               <button type="submit" id="submitBtn" class="btn btn-primary" style="flex: 1;" data-i18n="btn_upload">✨ Upload</button>
               <button type="button" id="cancelEditBtn" class="btn"

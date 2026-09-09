@@ -25,6 +25,14 @@ const workSchema = new mongoose.Schema({
   images: { type: [String], default: [] },
   video_url: { type: String, default: null },
   videos: { type: [String], default: [] },
+  // Google Docs / Slides / Sheets / Drive links shown at the bottom of the detail page
+  documents: {
+    type: [new mongoose.Schema({
+      title: { type: String, default: '' },
+      url: { type: String, required: true }
+    }, { _id: false })],
+    default: []
+  },
   tags: { type: String, required: true },
   is_starred: { type: Boolean, default: false },
   order: { type: Number, default: 0 },
