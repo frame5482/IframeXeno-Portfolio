@@ -149,6 +149,7 @@
 .project-gallery {
   display: grid;
   gap: 4px;
+  min-width: 0;
   aspect-ratio: 16 / 10;
   background: var(--lavender-light);
   overflow: hidden;
@@ -202,10 +203,12 @@
   justify-content: center;
   gap: 1rem;
   padding: 2rem 2.2rem;
+  min-width: 0;
 }
 
 .project-title {
   font-family: var(--font-heading);
+  overflow-wrap: anywhere;
   font-size: 1.9rem;
   font-weight: 700;
   line-height: 1.25;
@@ -215,6 +218,7 @@
 
 .project-desc {
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
   line-height: 1.7;
   color: var(--text-light);
   margin: 0;
@@ -343,11 +347,11 @@
 .projects-count:empty { display: none; }
 
 @media (max-width: 760px) {
-  .project-card { grid-template-columns: 1fr; }
+  .project-card { grid-template-columns: minmax(0, 1fr); }
   .project-info { padding: 1.4rem 1.5rem 1.8rem; }
   .project-title { font-size: 1.4rem; }
   .project-desc { font-size: 0.9rem; -webkit-line-clamp: 3; }
-  .project-skeleton { grid-template-columns: 1fr; }
+  .project-skeleton { grid-template-columns: minmax(0, 1fr); }
   .project-skeleton .sk-info { padding: 1.4rem 1.5rem 1.8rem; }
 }
 
