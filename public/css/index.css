@@ -239,6 +239,95 @@
 
 .projects-more { text-align: center; margin-top: 2rem; }
 
+/* --- Loading state --- */
+.projects-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.8rem 0 0;
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-light);
+}
+
+.projects-loading .loading-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--lavender);
+  animation: loadingDot 1.2s ease-in-out infinite;
+}
+.projects-loading .loading-dot:nth-child(2) { background: var(--rose);  animation-delay: 0.15s; }
+.projects-loading .loading-dot:nth-child(3) { background: var(--peach); animation-delay: 0.3s; }
+.projects-loading span:not(.loading-dot) { margin-left: 0.25rem; }
+
+@keyframes loadingDot {
+  0%, 100% { transform: translateY(0);    opacity: 0.4; }
+  50%      { transform: translateY(-5px); opacity: 1; }
+}
+
+.sk-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(232, 213, 255, 0.35) 20%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(232, 213, 255, 0.35) 80%
+  );
+  background-color: var(--bg-alt);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeletonShimmer 1.5s linear infinite;
+  animation-delay: var(--sk-delay, 0s);
+}
+
+@keyframes skeletonShimmer {
+  from { background-position: 160% 0; }
+  to   { background-position: -60% 0; }
+}
+
+/* Same shape as a real .project-card so nothing shifts on swap */
+.project-skeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  pointer-events: none;
+}
+
+.project-skeleton .sk-gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  aspect-ratio: 16 / 10;
+}
+
+.project-skeleton .sk-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 2rem 2.2rem;
+}
+
+.project-skeleton .sk-line {
+  height: 12px;
+  border-radius: var(--radius-full);
+}
+.project-skeleton .sk-line-title { height: 26px; width: 70%; margin-bottom: 0.4rem; }
+.project-skeleton .sk-line-short { width: 55%; }
+
+.project-skeleton .sk-tags { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+.project-skeleton .sk-tag {
+  width: 84px; height: 26px;
+  border-radius: var(--radius-full);
+}
+
 .projects-count {
   display: inline-flex;
   align-items: center;
@@ -258,6 +347,8 @@
   .project-info { padding: 1.4rem 1.5rem 1.8rem; }
   .project-title { font-size: 1.4rem; }
   .project-desc { font-size: 0.9rem; -webkit-line-clamp: 3; }
+  .project-skeleton { grid-template-columns: 1fr; }
+  .project-skeleton .sk-info { padding: 1.4rem 1.5rem 1.8rem; }
 }
 
 /* Tools */

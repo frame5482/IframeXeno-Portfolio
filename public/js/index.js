@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Home Projects (works marked with the purple star in Admin) ---
 const HOME_PROJECT_LIMIT = 6;
 const HOME_PROJECT_IMAGES = 4;
+const HOME_SKELETON_COUNT = 2;
 let homeProjects = [];
 let totalWorks = 0;
 
@@ -28,21 +29,60 @@ async function loadHomeProjects() {
   const list = document.getElementById('projectsList');
   if (!section || !list) return;
 
+  showProjectsLoading(list);
+
   try {
     const res = await fetch('/api/works?home=1');
     if (!res.ok) throw new Error('Request failed');
     const works = await res.json();
-    if (!Array.isArray(works) || works.length === 0) return;
+    if (!Array.isArray(works) || works.length === 0) {
+      hideProjectsSection(section);
+      return;
+    }
 
     homeProjects = works.slice(0, HOME_PROJECT_LIMIT);
     renderHomeProjects(homeProjects, list);
     loadWorksCount();
-    section.style.display = '';
-    // The section starts hidden, so the reveal observer never saw it.
-    section.classList.add('visible');
+    endProjectsLoading(list);
   } catch (err) {
     console.error('Failed to load home projects:', err);
+    hideProjectsSection(section);
   }
+}
+
+// Skeleton cards hold the section's shape while /api/works is in flight, so
+// the page doesn't jump once the real cards land.
+function showProjectsLoading(list) {
+  list.setAttribute('aria-busy', 'true');
+  list.innerHTML = Array.from({ length: HOME_SKELETON_COUNT }, (_, i) => `
+    <div class="project-skeleton" style="--sk-delay:${(i * 0.15).toFixed(2)}s" aria-hidden="true">
+      <div class="sk-gallery">
+        <div class="sk-shot sk-shimmer"></div>
+        <div class="sk-shot sk-shimmer"></div>
+        <div class="sk-shot sk-shimmer"></div>
+        <div class="sk-shot sk-shimmer"></div>
+      </div>
+      <div class="sk-info">
+        <div class="sk-line sk-line-title sk-shimmer"></div>
+        <div class="sk-line sk-shimmer"></div>
+        <div class="sk-line sk-shimmer"></div>
+        <div class="sk-line sk-line-short sk-shimmer"></div>
+        <div class="sk-tags">
+          <span class="sk-tag sk-shimmer"></span>
+          <span class="sk-tag sk-shimmer"></span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function endProjectsLoading(list) {
+  list.setAttribute('aria-busy', 'false');
+  const label = document.getElementById('projectsLoading');
+  if (label) label.style.display = 'none';
+}
+
+function hideProjectsSection(section) {
+  section.style.display = 'none';
 }
 
 // The "view all" button carries the total, so visitors know how much more
