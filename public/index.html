@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
   <link rel="stylesheet" href="/css/global.css">
-  <link rel="stylesheet" href="/css/index.css?v=3">
+  <link rel="stylesheet" href="/css/index.css?v=4">
   <script src="/js/i18n.js"></script>
 </head>
 
@@ -101,7 +101,10 @@
       </div>
       <div class="projects-list" id="projectsList"></div>
       <div class="projects-more">
-        <a href="/works" class="btn btn-secondary" data-i18n="btn_view_all_works">🖼 View all works</a>
+        <a href="/works" class="btn btn-secondary">
+          <span data-i18n="btn_view_all_works">🖼 View all works</span>
+          <span class="projects-count" id="projectsCount"></span>
+        </a>
       </div>
     </section>
 
@@ -202,7 +205,7 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="/js/index.js?v=3"></script>
+  <script src="/js/index.js?v=4"></script>
 </body>
 
 </html>

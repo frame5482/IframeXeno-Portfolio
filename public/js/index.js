@@ -14,11 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
 const HOME_PROJECT_LIMIT = 6;
 const HOME_PROJECT_IMAGES = 4;
 let homeProjects = [];
+let totalWorks = 0;
 
 // Card titles come from the API, so they need re-rendering on a language switch
 window.addEventListener('languageChanged', () => {
   const list = document.getElementById('projectsList');
   if (list && homeProjects.length) renderHomeProjects(homeProjects, list);
+  renderWorksCount();
 });
 
 async function loadHomeProjects() {
@@ -34,12 +36,34 @@ async function loadHomeProjects() {
 
     homeProjects = works.slice(0, HOME_PROJECT_LIMIT);
     renderHomeProjects(homeProjects, list);
+    loadWorksCount();
     section.style.display = '';
     // The section starts hidden, so the reveal observer never saw it.
     section.classList.add('visible');
   } catch (err) {
     console.error('Failed to load home projects:', err);
   }
+}
+
+// The "view all" button carries the total, so visitors know how much more
+// there is behind it than the handful showcased here.
+async function loadWorksCount() {
+  try {
+    const res = await fetch('/api/works/count');
+    if (!res.ok) return;
+    const data = await res.json();
+    totalWorks = Number(data.total) || 0;
+    renderWorksCount();
+  } catch (err) {
+    console.error('Failed to load works count:', err);
+  }
+}
+
+function renderWorksCount() {
+  const el = document.getElementById('projectsCount');
+  if (!el || !totalWorks) return;
+  const unit = typeof getI18n === 'function' ? getI18n('works_count_unit') : '';
+  el.textContent = `${totalWorks} ${unit}`.trim();
 }
 
 function renderHomeProjects(works, list) {

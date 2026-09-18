@@ -168,6 +168,17 @@ app.get('/api/works', async (req, res) => {
   }
 });
 
+// Total number of works — the Home page shows it on the "view all" button
+// (Must be above /api/works/:id)
+app.get('/api/works/count', async (req, res) => {
+  try {
+    const total = await Work.countDocuments({});
+    res.json({ total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get single work by ID
 app.get('/api/works/:id', async (req, res) => {
   try {
