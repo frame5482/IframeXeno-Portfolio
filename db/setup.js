@@ -35,6 +35,8 @@ const workSchema = new mongoose.Schema({
   },
   tags: { type: String, required: true },
   is_starred: { type: Boolean, default: false },
+  // Purple star: picks the work out to be showcased on the Home page
+  is_home: { type: Boolean, default: false },
   order: { type: Number, default: 0 },
   created_at: { type: Date, default: Date.now }
 });

@@ -116,10 +116,14 @@ app.post('/api/login', (req, res) => {
 // Get all works (optional tag filter)
 app.get('/api/works', async (req, res) => {
   try {
-    const { tag } = req.query;
+    const { tag, home } = req.query;
     let query = {};
     if (tag) {
       query = { tags: { $regex: new RegExp(`\\\\b${tag}\\\\b`, 'i') } };
+    }
+    // Home page asks only for the works carrying the purple star
+    if (home === '1' || home === 'true') {
+      query.is_home = true;
     }
     const works = await Work.find(query).sort({ is_starred: -1, order: 1, created_at: -1 });
     
@@ -127,6 +131,10 @@ app.get('/api/works', async (req, res) => {
       const isStarred = w.is_starred === true;
       const starBtnClass = isStarred ? 'btn-star-active' : 'btn-secondary';
       const starIcon = isStarred ? '⭐' : '☆';
+
+      const isHome = w.is_home === true;
+      const homeBtnClass = isHome ? 'btn-home-active' : 'btn-home-idle';
+      const homeIcon = '✦';
 
       return {
         id: w._id,
@@ -145,10 +153,13 @@ app.get('/api/works', async (req, res) => {
         documents: w.documents || [],
         tags: w.tags,
         is_starred: w.is_starred || false,
+        is_home: w.is_home || false,
         order: w.order || 0,
         created_at: w.created_at,
         starBtnClass,
-        starIcon
+        starIcon,
+        homeBtnClass,
+        homeIcon
       };
     });
     res.json(mappedWorks);
@@ -181,6 +192,7 @@ app.get('/api/works/:id', async (req, res) => {
       documents: work.documents || [],
       tags: work.tags,
       is_starred: work.is_starred || false,
+      is_home: work.is_home || false,
       order: work.order || 0,
       created_at: work.created_at
     });
@@ -317,6 +329,22 @@ app.put('/api/works/:id/star', authMiddleware, async (req, res) => {
   }
 });
 
+// Toggle the purple star — shows the work on the Home page
+// (Must be above /api/works/:id)
+app.put('/api/works/:id/home', authMiddleware, async (req, res) => {
+  try {
+    const work = await Work.findById(req.params.id);
+    if (!work) return res.status(404).json({ error: 'Work not found' });
+    work.is_home = !work.is_home;
+    await work.save();
+    console.log(`✦ Toggled home showcase for: ${work.title} (Status: ${work.is_home})`);
+    res.json({ success: true, is_home: work.is_home });
+  } catch (err) {
+    console.error('❌ Home toggle error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Hand the browser a short-lived signature so it can upload straight to
 // Cloudinary. Vercel caps a request body at ~4.5MB, so routing large images
 // through this function would fail with a 413 before our code ever runs.
@@ -415,7 +443,7 @@ app.post('/api/works', authMiddleware, (req, res, next) => {
       id: newWork._id,
       title, description, image_url, images, video_url: video_url || null, videos: parsedVideos,
       documents: parsedDocuments, tags,
-      is_starred: false, order: 0,
+      is_starred: false, is_home: false, order: 0,
       message: 'Work uploaded successfully ✨'
     });
   } catch (err) {

@@ -110,6 +110,58 @@
   border-color: #DAA520 !important;
 }
 
+/* Purple star — showcased on the Home page */
+.admin-work-item.home-item {
+  border-right: 5px solid var(--lavender-dark);
+  background: rgba(155, 111, 219, 0.06);
+}
+
+.admin-work-item.starred-item.home-item {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.07), rgba(155, 111, 219, 0.09));
+}
+
+.home-badge-text {
+  font-size: 0.75rem;
+  color: var(--lavender-dark);
+  font-weight: bold;
+  background: rgba(155, 111, 219, 0.12);
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 5px;
+}
+
+/* Idle state still reads as a purple star so it's obviously clickable */
+.btn-home-idle {
+  background: #fff !important;
+  color: var(--lavender-dark) !important;
+  border: 2px dashed var(--lavender-dark) !important;
+  opacity: 0.85;
+}
+
+.btn-home-idle:hover {
+  opacity: 1;
+  background: var(--lavender-light) !important;
+  transform: translateY(-2px);
+}
+
+.btn-home-active {
+  background: var(--lavender-dark) !important;
+  color: #fff !important;
+  border: 2px solid var(--lavender-dark) !important;
+  box-shadow: 0 0 10px rgba(155, 111, 219, 0.5);
+}
+
+/* Both stars share a chunky, easy-to-hit shape */
+.btn-home-idle,
+.btn-home-active,
+.btn-star-active,
+.admin-work-item .btn-secondary {
+  min-width: 40px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
 .admin-work-item.dragging {
   opacity: 0.4;
   background: var(--lavender-light);

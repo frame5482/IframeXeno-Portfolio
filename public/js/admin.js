@@ -714,18 +714,20 @@ async function loadAdminWorks() {
       const imgBadge = imgCount > 1 ? `<span style="color:var(--lavender-dark);font-size:0.75rem;">🖼 ${imgCount} images</span>` : '';
       
       const isStarred = work.is_starred === true;
+      const isHome = work.is_home === true;
       const title = work[`title_${getCurrentLang()}`] || work.title;
 
       return `
-      <div class="admin-work-item ${isStarred ? 'starred-item' : ''}" data-id="${work.id}" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondragend="dragEnd(event)">
+      <div class="admin-work-item ${isStarred ? 'starred-item' : ''} ${isHome ? 'home-item' : ''}" data-id="${work.id}" draggable="true" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="drop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondragend="dragEnd(event)">
         <div class="drag-handle">⋮⋮</div>
         <img src="${thumbSrc}" alt="${title}" class="admin-work-thumb" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%23f0f0f0\\'/><text y=\\'50%\\' x=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' font-size=\\'40\\'>🖼</text></svg>'">
         <div class="admin-work-info">
-          <h3>${title} ${isStarred ? '<span class="star-badge-text">⭐ Featured</span>' : ''}</h3>
+          <h3>${title} ${isStarred ? '<span class="star-badge-text">⭐ Featured</span>' : ''} ${isHome ? '<span class="home-badge-text">✦ On Home</span>' : ''}</h3>
           <p>${work.tags} ${videoBadge} ${imgBadge}</p>
         </div>
         <div style="display: flex; gap: 5px; align-items: center;">
           <button class="btn btn-sm ${work.starBtnClass}" onclick="event.stopPropagation(); toggleStar('${work.id}')" title="Star this work to keep it at the top">${work.starIcon}</button>
+          <button class="btn btn-sm ${work.homeBtnClass}" onclick="event.stopPropagation(); toggleHome('${work.id}')" title="Purple star — showcase this work on the Home page">${work.homeIcon}</button>
           <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); editWork('${work.id}')">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteWork('${work.id}')">🗑</button>
         </div>
@@ -753,6 +755,26 @@ window.toggleStar = async function(id) {
     }
   } catch (err) {
     console.error('Toggle star error:', err);
+  }
+};
+
+// --- Toggle Home Showcase (purple star) ---
+window.toggleHome = async function(id) {
+  try {
+    const res = await fetch(`/api/works/${id}/home`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(data.is_home ? '✦ Added to the Home page' : '✧ Removed from the Home page', 'success');
+      loadAdminWorks();
+    } else {
+      const errData = await res.json();
+      console.error('❌ Home toggle failed:', errData);
+    }
+  } catch (err) {
+    console.error('Toggle home error:', err);
   }
 };
 

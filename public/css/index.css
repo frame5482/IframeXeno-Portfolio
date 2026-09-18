@@ -111,6 +111,96 @@
 .skill-card h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
 .skill-card p { font-size: 0.85rem; color: var(--text-light); line-height: 1.6; }
 
+/* Projects (purple-star works showcased from Admin) */
+.projects-section { padding: 3rem 2rem; max-width: 1000px; margin: 0 auto; }
+
+.projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.project-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0;
+  animation: projectFadeIn 0.6s ease forwards;
+  transition: transform var(--transition-med), box-shadow var(--transition-med);
+}
+
+.project-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(157, 111, 219, 0.25);
+}
+
+@keyframes projectFadeIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.project-media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--lavender-light);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+
+.project-media img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--transition-med);
+}
+
+.project-card:hover .project-media img { transform: scale(1.06); }
+
+.project-media-empty { font-size: 3rem; opacity: 0.5; }
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 2.2rem;
+}
+
+.project-title {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+  margin: 0;
+}
+
+.project-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.project-tag {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--lavender-light), var(--rose-light));
+  color: var(--lavender-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.projects-more { text-align: center; margin-top: 2rem; }
+
+@media (max-width: 760px) {
+  .project-card { grid-template-columns: 1fr; }
+  .project-info { padding: 1.4rem 1.5rem 1.8rem; }
+  .project-title { font-size: 1.4rem; }
+}
+
 /* Tools */
 .tools-section { padding: 3rem 2rem; max-width: 900px; margin: 0 auto; }
 
@@ -180,5 +270,6 @@
   .hero-edu-major { font-size: 0.72rem; }
   .avatar-ring { width: 140px; height: 140px; }
   .skills-grid { grid-template-columns: 1fr; }
+  .projects-section { padding: 2.5rem 1.2rem; }
   .tools-grid { grid-template-columns: repeat(2, 1fr); }
 }
