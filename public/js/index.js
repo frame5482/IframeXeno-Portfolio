@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Home Projects (works marked with the purple star in Admin) ---
 const HOME_PROJECT_LIMIT = 6;
+const HOME_PROJECT_IMAGES = 4;
 let homeProjects = [];
 
 // Card titles come from the API, so they need re-rendering on a language switch
@@ -46,7 +47,7 @@ function renderHomeProjects(works, list) {
 
   list.innerHTML = works.map((work, i) => {
     const title = work[`title_${lang}`] || work.title || '';
-    const thumb = work.image_url || getYouTubeThumbnail(work.video_url);
+    const desc = work[`description_${lang}`] || work.description || '';
     const tagsHtml = (work.tags || '')
       .split(',')
       .map(t => t.trim())
@@ -54,15 +55,33 @@ function renderHomeProjects(works, list) {
       .map(t => `<span class="project-tag">✦ ${escapeHtml(t)}</span>`)
       .join('');
 
-    const media = thumb
-      ? `<img src="${thumb}" alt="${escapeHtml(title)}" loading="lazy">`
-      : '<span class="project-media-empty">🖼</span>';
+    // Main image first, then the gallery images — up to four tiles per card
+    let pics = [work.image_url, ...(work.images || [])].filter(Boolean);
+    if (pics.length === 0) {
+      const thumb = getYouTubeThumbnail(work.video_url);
+      if (thumb) pics = [thumb];
+    }
+    const shown = pics.slice(0, HOME_PROJECT_IMAGES);
+    const extra = pics.length - shown.length;
+
+    const media = shown.length
+      ? `<div class="project-gallery g-${shown.length}">${shown.map((src, idx) => `
+          <div class="project-shot">
+            <img src="${src}" alt="${escapeHtml(title)}" loading="lazy">
+            ${idx === shown.length - 1 && extra > 0 ? `<span class="project-more-count">+${extra}</span>` : ''}
+          </div>`).join('')}</div>`
+      : '<div class="project-gallery g-1"><div class="project-shot project-media-empty">🖼</div></div>';
+
+    const descHtml = desc
+      ? `<p class="project-desc">${escapeHtml(desc)}</p>`
+      : '';
 
     return `
       <a class="project-card glass-card" href="/work-detail?id=${work.id}" style="animation-delay:${i * 0.1}s">
-        <div class="project-media">${media}</div>
+        ${media}
         <div class="project-info">
           <h3 class="project-title">${escapeHtml(title)}</h3>
+          ${descHtml}
           <div class="project-tags">${tagsHtml}</div>
         </div>
       </a>
